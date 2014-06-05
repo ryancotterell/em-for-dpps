@@ -31,7 +31,7 @@ for N_num = 1:numel(Ns)
     end
   end
   
-  if isfiled(rN, 'wi_start')
+  if isfield(rN, 'wi_start')
     L_scalings = rN.L_scalings;
     base_sum_str = sum_str;
     for i = 1:numel(L_scalings)
