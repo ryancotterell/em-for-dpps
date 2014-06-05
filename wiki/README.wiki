@@ -48,7 +48,7 @@ registries_eval.m to print text describing the results:
   registries_eval('safety_first.mat');
 }}}
 When examining these results, note that the "true" log likelihood here
-is just the EM one; we have aliased the two terms for the registries
+is just the KA one; we have aliased the two terms for the registries
 test for simplicity, as no "true" likelihood exists.
 
 
