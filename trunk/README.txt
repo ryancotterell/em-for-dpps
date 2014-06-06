@@ -1,6 +1,6 @@
 Code and data associated with the 2014 NIPS submission
-"Expectation Maximization for Determinantal Point Processes"
---------------------------------------------------------------
+"Expectation-Maximization for Learning Determinantal Point Processes"
+---------------------------------------------------------------------
 
 Code Installation
 -----------------
