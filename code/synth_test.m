@@ -36,9 +36,7 @@ for N_num = 1:numel(Ns)
     for i = 1:numel(min_Y_sizes)
       results(N_num).mc_start(i) = ...
       test_all_target_types(N, T_sizes, ...
-			    @(T, K) utils.K_moments_init(T, \
-							 max_eig), \
-			    min_Y_sizes(i));
+			    @(T, K) utils.K_moments_init(T, max_eig), min_Y_sizes(i));
       save(result_file, 'results', '-append', '-v7.3');
     end
   end
@@ -173,7 +171,7 @@ for t = 1:num_trials
     em_time = toc;
     results.Ks(T_num, t).em = K_em;
     tic;
-    K_ka = K_ascent(T_train, ka_opts, utils, K_start);
+    K_ka = K_ascent(T_train, ka_opts, utils, K_start, 'pg');  %'eg'
     ka_time = toc;
     results.Ks(T_num, t).ka = K_ka;
      
