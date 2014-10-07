@@ -1,5 +1,5 @@
-function K = K_ascent(T, opts, utils, K_start)
-% Projected gradient ascent on a DPP's marginal kernel, K.
+function [K, obj_vals] = K_ascent(T, opts, utils, K_start, type)
+% Gradient ascent on a DPP's marginal kernel, K.
 %   T = training set (see opt_utils.m's build_training_set)
 %   opts = convergence options (see opt_utils.m's get_K_ascent_opts)
 %   utils = access to generic optimization code (typically opt_util.m's utils) 
@@ -7,12 +7,25 @@ function K = K_ascent(T, opts, utils, K_start)
 
 K_start = K_start.M;
 
+if strcmp(type, 'pg')
+  K_step_func = @K_pg_step_func;
+else
+  if strcmp(type, 'eg')
+    K_step_func = @(step_size, K, Kg) ...
+      K_eg_step_func(step_size, K, Kg, opts.min_eig);
+  else
+    throw(MException('K_ascent:BadType', ...
+      ['Recognized types are projected gradient (pg) and' ...
+       'exponentiated gradient (eg).']));
+  end
+end
+
 % Run the optimization.
 initial_step_size = 1;
-K = utils.optimize_param('K', K_start, ...
+[K, obj_vals] = utils.optimize_param('K', K_start, ...
   @(K) K_grad_func(T, K), ...
   initial_step_size, ...
-  @(step_size, K, Kg) K_step_func(step_size, K, Kg), ...
+  K_step_func, ...
   utils.K_log_likelihood(T, K_start), ...
   @(K) utils.K_log_likelihood(T, K), ...
   opts.min_step_size, ...
@@ -45,7 +58,7 @@ for i = 1:T.n_dedup
 end
 
 
-function K = K_step_func(step_size, K, Kg)
+function K = K_pg_step_func(step_size, K, Kg)
 % Take a step in the direction of the gradient.
 K = K + step_size * Kg;
 
@@ -54,3 +67,11 @@ K = K + step_size * Kg;
 D = diag(D);
 D = min(max(real(D), 0), 1);
 K = V * diag(D) * V';
+
+
+function K = K_eg_step_func(step_size, K, Kg, min_eig)
+% Take an exponentiated gradient step, truncating eigenvalues at 1 and,
+% so that logm(K) is feasible, min_eig.
+[V, D] = eig(logm(K) + step_size * Kg);
+D = diag(D);
+K = bsxfun(@times, V, max(min(exp(D), 1), min_eig)') * V';

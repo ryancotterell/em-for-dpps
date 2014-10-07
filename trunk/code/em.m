@@ -1,4 +1,4 @@
-function K = em(T, opts, utils, K_start)
+function [K, obj_vals] = em(T, opts, utils, K_start)
 % Expectation maximization for a DPP.
 %   T = training set (see opt_utils.m's build_training_set)
 %   opts = convergence options (see opt_utils.m's get_K_ascent_opts)
@@ -19,6 +19,7 @@ R = sqrt(D ./ (1 - D));
 prev_log_like = -Inf;
 em_iter = 0;
 step_size = 1;
+obj_vals = [];
 while 1
   em_iter = em_iter + 1;
   fprintf('EM iteration %d\n', em_iter);
@@ -58,6 +59,7 @@ while 1
   
   % Make sure the log likelihood has increased since the last iteration.
   fprintf('Log likelihood: %f\n', log_like);
+  obj_vals(end + 1) = log_like;
   if em_iter > 1
     obj_diff = log_like - prev_log_like;
     assert(obj_diff >= -1e-5 * abs(prev_log_like));
@@ -82,12 +84,12 @@ while 1
     step_size, @V_step_func, V_obj_func(T, V, D_new, R_new), ...
     @(V) V_obj_func(T, V, D_new, R_new), ...
     opts.min_step_size);
-    
+  
   % E-step: Set q = p_K.
   D = D_new;
   R = R_new;
   V = V_new;
-    
+  
   if em_iter == opts.max_em_iters
     fprintf('Exiting EM after executing maximum # of iterations.\n');
     break;

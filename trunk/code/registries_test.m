@@ -87,7 +87,7 @@ for t = 1:num_trials
   
   % Run learning.
   K_em = em(T_train, em_opts, utils, K_start);
-  K_ka = K_ascent(T_train, ka_opts, utils, K_start);
+  K_ka = K_ascent(T_train, ka_opts, utils, K_start, 'pg');
 
   % Compare learned Ks' likelihoods.
   % To re-use synth code we pass in K_em twice here;

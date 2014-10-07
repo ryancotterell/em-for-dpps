@@ -23,6 +23,7 @@ utils.get_max_change = @get_max_change;
 
 utils.get_em_opts = @get_em_opts;
 utils.get_K_ascent_opts = @get_K_ascent_opts;
+utils.get_K_expgrad_opts = @get_K_expgrad_opts;
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% Dataset Generators %%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -300,14 +301,15 @@ while 1
 end
 
 
-function [A, obj, iter] = optimize_param(param_name, A, grad_func, ...
-  step_size, step_func, obj, obj_func, min_step_size, ...
+function [A, obj_vals, iter] = optimize_param(param_name, A, ...
+  grad_func, step_size, step_func, obj, obj_func, min_step_size, ...
   short_get_max_change, min_obj_change, max_iters)
 iter = 0;
 if max_iters == 0
   return;
 end
 
+obj_vals = obj;
 while 1
   fprintf('%s update iteration %d\n', param_name, iter + 1);
   A_old = A;
@@ -316,8 +318,8 @@ while 1
 
   [A, obj, step_size] = take_one_step(param_name, A_old, Ag, step_size, ...
     step_func, obj_old, obj_func, min_step_size);
-  step_size = 2 * step_size;
   iter = iter + 1;
+  obj_vals(end + 1) = obj;
 
   % Check optimization-ending conditions.  
   obj_change = short_get_max_change(obj_old, obj);
@@ -359,7 +361,8 @@ opts.min_step_size = 1e-8;
 opts.max_eig = 0.99;
 
 
-% Sets up all the optimization parameters for direct ascent on K.
+% Sets up all the optimization parameters for projected gradient ascent
+% on K.
 function opts = get_K_ascent_opts(N)
 % Same as for EM.
 opts.min_obj_change = 1e-4;
@@ -367,3 +370,6 @@ opts.zero_limit = 1e-5;
 opts.max_iters = 100 * N^2;
 % Below this step size, the K-updating code will stop trying to change K.
 opts.min_step_size = 1e-8;
+% Eigenvalue lower bound (only used with exponentiated gradient).
+opts.min_eig = 0.01;
+
