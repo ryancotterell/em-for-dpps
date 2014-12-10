@@ -84,6 +84,7 @@ while 1
     step_size, @V_step_func, V_obj_func(T, V, D_new, R_new), ...
     @(V) V_obj_func(T, V, D_new, R_new), ...
     opts.min_step_size);
+  step_size = 1;
   
   % E-step: Set q = p_K.
   D = D_new;
@@ -95,6 +96,9 @@ while 1
     break;
   end
 end
+
+% Round up any eigenvalues that are at the limit.
+D(D == opts.max_eig) = 1;
 
 % Construct K from the learned D and V.
 K.D = D;

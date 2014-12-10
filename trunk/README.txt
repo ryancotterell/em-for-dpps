@@ -1,4 +1,4 @@
-Code and data associated with the 2014 NIPS submission
+Code and data associated with the NIPS 2014 paper
 "Expectation-Maximization for Learning Determinantal Point Processes"
 ---------------------------------------------------------------------
 
@@ -6,7 +6,8 @@ Code Installation
 -----------------
 
 Start MATLAB from the trunk/code directory and compile the one java
-file: "javac EqualByValueIntArray.java".
+file: "javac EqualByValueIntArray.java".  (Try "!javac" if "javac" is not
+found.)
 
 
 Code Usage
@@ -15,33 +16,14 @@ Code Usage
 Start MATLAB from the trunk/code directory, or run startup.m to ensure
 that the current folder is on the java classpath.
 
-**** Synthetic experiments:
-
-To re-produce synthetic experiments from the paper, run synth_test.m
-with the appropriate inputs.  For example, the command:
-
-  synth_test([20,40,60,80,100], 'wi', 'wi_init.mat');
-
-will test kernel sizes 20-100, starting the optimization methods from
-the Wishart initialization described in the experiments section of the
-paper.  The results will be saved in 'wi_init.mat'.  Run synth_eval.m
-to print text describing the results:
-  
-  synth_eval('wi_init.mat');
-
-Note that the numbers will probably not be exactly identical to those
-found in the paper, as some randomization is involved in these
-synthetic tests.
-
-
 **** Baby registry experiments:
 
 To re-produce the baby registry experiments from the paper, run
 registries_test.m with the appropriate inputs.  For example:
 
-  registries_test('../data/mm_2_100_100_100_safety_regs.csv', ...
-                  '../data/mm_2_100_100_100_safety_item_names.txt', ...
-                  '../safety_first.mat', 0.7, 10, 'wi')'
+  registries_test('../data/1_100_100_100_safety_regs.csv', ...
+                  '../data/1_100_100_100_safety_item_names.txt', ...
+                  '../safety_first.mat', 0.7, 10, 'wi', -1)'
 
 will run ten trials testing the safety product category, with 70% of
 the data allocated for training, and a Wishart type initialization.
@@ -100,9 +82,6 @@ its Amazon product ID is identical.
 
 Each line of a regs file constitutes one registry (restricted to the
 category indicated by the filename).  The numbers index into the
-item_names.txt file.  For example, the first line in
-1_100_200_100_safety_regs.csv is: "1,2" and this indicates the first
-two products from the corresponding item_names.txt file:
-
-  1 safety: Graco Sweet Slumber Sound Machine, White : Electronic Infant Sleep Aids : Baby
-  2 safety: Snuza Baby Monitor, Hero : Baby
+item_names.txt file.  For example, if the first line in the csv file
+is "1,2" then this indicates the first two products from the
+corresponding item_names.txt file.

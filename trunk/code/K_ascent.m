@@ -5,12 +5,15 @@ function [K, obj_vals] = K_ascent(T, opts, utils, K_start, type)
 %   utils = access to generic optimization code (typically opt_util.m's utils) 
 %   K_start = initial K from which to begin gradient ascent
 
-K_start = K_start.M;
-
 if strcmp(type, 'pg')
   K_step_func = @K_pg_step_func;
 else
   if strcmp(type, 'eg')
+    % Enforce min eig constraint if running exponentitated gradient.
+    K_start.D = max(K_start.D, opts.min_eig);
+    K_start.M = K_start.V * diag(K_start.D) * K_start.V';
+    K_start.M = (K_start.M + K_start.M') / 2;
+    
     K_step_func = @(step_size, K, Kg) ...
       K_eg_step_func(step_size, K, Kg, opts.min_eig);
   else
@@ -21,6 +24,7 @@ else
 end
 
 % Run the optimization.
+K_start = K_start.M;
 initial_step_size = 1;
 [K, obj_vals] = utils.optimize_param('K', K_start, ...
   @(K) K_grad_func(T, K), ...
@@ -70,8 +74,9 @@ K = V * diag(D) * V';
 
 
 function K = K_eg_step_func(step_size, K, Kg, min_eig)
-% Take an exponentiated gradient step, truncating eigenvalues at 1 and,
-% so that logm(K) is feasible, min_eig.
+% Take an exponentiated gradient step, truncating eigenvalues at 1 and (so
+% that logm(K) is feasible) min_eig.
 [V, D] = eig(logm(K) + step_size * Kg);
 D = diag(D);
-K = bsxfun(@times, V, max(min(exp(D), 1), min_eig)') * V';
+D = max(min(exp(real(D)), 1), min_eig);
+K = V * diag(D) * V';

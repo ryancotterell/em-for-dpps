@@ -15,6 +15,7 @@ utils.K_Dshaken_init = @K_Dshaken_init;
 utils.K_Vrotated_init = @K_Vrotated_init;
 
 utils.K_log_likelihood = @K_log_likelihood;
+utils.median_K_log_likelihood = @median_K_log_likelihood;
 utils.L_log_likelihood = @L_log_likelihood;
 
 utils.take_one_step = @take_one_step;
@@ -214,8 +215,8 @@ K.D = D;
 function K = K_Dshaken_init(K, shake_strength)
 % Change eigenvalues by at most shake_strength, truncating to keep a small
 % margin between their values and 0, 1.
-lower_limit = 0.01;
-upper_limit = 0.99;
+lower_limit = 0.001;
+upper_limit = 0.999;
 N = size(K.M, 1);
 K.D = max(min(K.D + 2 * shake_strength * (rand(N, 1) - 0.5), ...
   upper_limit), lower_limit);
@@ -255,6 +256,22 @@ for i = 1:T.n_dedup
   K(diag_idxs) = K_diag - T.Y_bar_inds{i};
   obj = obj + T.Y_fracs(i) * log(abs(det(K)));
 end
+
+
+function med = median_K_log_likelihood(T, K)
+scores = zeros(T.n_dedup, 1);
+K_diag = diag(K);
+diag_idxs = 1:T.N+1:T.N^2;
+for i = 1:T.n_dedup
+  K(diag_idxs) = K_diag - T.Y_bar_inds{i};
+  scores(i) = log(abs(det(K)));
+end
+[scores, order] = sort(scores);
+counts = T.Y_counts(order);
+med_loc = floor(T.n / 2);
+counts_sum = cumsum(counts);
+med_loc = find(counts_sum >= med_loc, 1);
+med = scores(med_loc);
 
 
 function obj = L_log_likelihood(T, L)
@@ -319,6 +336,7 @@ while 1
   [A, obj, step_size] = take_one_step(param_name, A_old, Ag, step_size, ...
     step_func, obj_old, obj_func, min_step_size);
   iter = iter + 1;
+  step_size = 1;
   obj_vals(end + 1) = obj;
 
   % Check optimization-ending conditions.  
@@ -358,7 +376,7 @@ opts.max_em_iters = 100 * N^2;
 % Below this step size, the V-updating code will stop trying to change V.
 opts.min_step_size = 1e-8;
 % Eigenvalue cap (so that q's L-kernels won't be infinite).
-opts.max_eig = 0.99;
+opts.max_eig = 0.999;
 
 
 % Sets up all the optimization parameters for projected gradient ascent
@@ -371,5 +389,5 @@ opts.max_iters = 100 * N^2;
 % Below this step size, the K-updating code will stop trying to change K.
 opts.min_step_size = 1e-8;
 % Eigenvalue lower bound (only used with exponentiated gradient).
-opts.min_eig = 0.01;
+opts.min_eig = 0.001;
 
