@@ -15,15 +15,29 @@ utils = opt_utils();
 rutils = registries_utils();
 eutils = eval_utils();
 
-% Print basic EM-KA comparison statistics.
+% Print basic EM-vs-baseline comparison statistics.
 T = rutils.build_training_set(Ps(:), N);
 k = median(T.Y_sizes);
-sum_str = sprintf('N = %d; k = %d', N, k);
-eutils.eval_target_type(r, num_train, [9:20, 23:33], sum_str)
+num_stats = size(r.quantiles_pg, 2);
+
+sum_str = sprintf('N = %d; k = %d; baseline = %s', N, k, 'pg');
+r.quantiles = r.quantiles_pg;
+eutils.eval_target_type(r, num_train, 1:num_stats, sum_str);
+
+%sum_str = sprintf('N = %d; k = %d; baseline = %s', N, k, 'eg');
+%r.quantiles = r.quantiles_eg;
+%eutils.eval_target_type(r, num_train, 1:num_stats, sum_str);
+
+%sum_str = sprintf('N = %d; k = %d; baseline = %s', N, k, 'mm');
+%r.quantiles = r.quantiles_mm;
+%eutils.eval_target_type(r, num_train, 1:num_stats, sum_str);
+
+%sum_str = sprintf('N = %d; k = %d; baseline = %s', N, k, 'diag');
+%r.quantiles = r.quantiles_diag;
+%eutils.eval_target_type(r, num_train, 1:num_stats, sum_str);
 
 % Check how important the off-diagonal is for this dataset.
-% (Smaller numbers here mean the off-diag is more important.)
+% (Larger numbers here mean the off-diag is more important.)
 Q = utils.get_low_moments(T);
-Q_od = Q - diag(diag(Q));
 diag_stren = (N / N^2) * norm(Q, 'fro') / norm(diag(Q), 2);
-fprintf('Diagonal strength: %.5f\n', diag_stren);
+fprintf('Off-diagonal strength: %.5f\n', diag_stren);

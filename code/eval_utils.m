@@ -1,12 +1,73 @@
 function utils = eval_utils()
-% Contains evaluation functionality common to synthetic- and
-% real-data evaluations.  See synth_test.m, registries_test.m,
-% synth_eval.m, and registries_eval.m for example uses.
+% Contains evaluation functionality.
+% See registries_test.m and registries_eval.m for example uses.
+
+utils.run_baseline = @run_baseline;
+utils.run_comparisons = @run_comparisons;
+utils.quantile_results = @quantile_results;
 
 utils.compare_learned_Ks = @compare_learned_Ks;
 utils.compare_learned_Ks_likelihoods = @compare_learned_Ks_likelihoods;
 
 utils.eval_target_type = @eval_target_type;
+
+
+function [K_ka, obj_vals_ka, ka_time] = ...
+  run_baseline(T_train, ka_opts, utils, K_start, base_type)
+if strcmp(base_type, 'pg') || strcmp(base_type, 'eg')
+  tic;
+  [K_ka, obj_vals_ka] = ...
+    K_ascent(T_train, ka_opts, utils, K_start, base_type);
+  ka_time = toc;
+else
+  if strcmp(base_type, 'diag')
+    tic;
+    % Builds the likelihood-maximizing diagonal kernel.
+    M = utils.get_low_moments(T_train);
+    M = diag(diag(M));
+    K_ka.D = M;
+    K_ka.M = M;
+    K_ka.V = eye(size(M));
+    obj_vals_ka = utils.K_log_likelihood(T_train, K_ka.M);
+    ka_time = toc;
+  else
+    if strcmp(base_type, 'mm')
+      tic;
+      K_ka = utils.K_moments_init(T_train, 1);
+      obj_vals_ka = utils.K_log_likelihood(T_train, K_ka.M);
+      ka_time = toc;
+    else
+      throw(MException('eval_utils:BadType', ...
+        ['Recognized types are projected gradient (pg),' ...
+         'exponentiated gradient (eg), and diagonal (diag).']));
+    end
+  end
+end
+
+
+function stats = run_comparisons(K, K_start, K_em, ...
+  obj_vals_em, em_time, K_ka, obj_vals_ka, ka_time, T_train, T_test)
+num_iters_em = numel(obj_vals_em);
+num_iters_ka = numel(obj_vals_ka);
+[kls, kl_diffs] = compare_learned_Ks(K, K_start, K_em, K_ka);
+[lls, ll_diffs] = ...
+  compare_learned_Ks_likelihoods(K, K_start, K_em, K_ka, ...
+  T_train, T_test);
+stats = [kls, lls, em_time, ka_time, ...
+  num_iters_em, num_iters_ka, ll_diffs, kl_diffs, ...
+  (em_time - ka_time) / ka_time, ...
+  (num_iters_em - num_iters_ka) / num_iters_ka, ...
+  em_time / num_iters_em, ka_time / num_iters_ka];
+
+
+function quantiles = quantile_results(stats)
+[num_T_sizes, num_stats, num_trials] = size(stats);
+quantiles = zeros(num_T_sizes, num_stats, 3);
+for T_num = 1:num_T_sizes
+  quantiles(T_num, :, :) = ...
+    prctile(reshape(stats(T_num, :, :), num_stats, num_trials), ...
+      [25, 50, 75], 2);
+end
 
 
 function [kls, kl_diffs] = compare_learned_Ks(K, K_start, K_em, K_ka)
@@ -42,19 +103,21 @@ kl_diffs = [em_true_Kkl - ka_true_Kkl, ...
 function [lls, ll_diffs] = ...
   compare_learned_Ks_likelihoods(K, K_start, K_em, K_ka, T_train, T_test)
 utils = opt_utils();
+ll_func = @(T1, K1) utils.K_log_likelihood(T1, K1);
+%ll_func = @(T1, K1) utils.median_K_log_likelihood(T1, K1);
 
-ll_em = utils.K_log_likelihood(T_train, K_em.M);
-ll_test_em = utils.K_log_likelihood(T_test, K_em.M);
-ll_test_em_diag = utils.K_log_likelihood(T_test, diag(diag(K_em.M)));
-ll_ka = utils.K_log_likelihood(T_train, K_ka.M);
-ll_test_ka = utils.K_log_likelihood(T_test, K_ka.M);
-ll_test_ka_diag = utils.K_log_likelihood(T_test, diag(diag(K_ka.M)));
-ll_start = utils.K_log_likelihood(T_train, K_start.M);
-ll_test_start = utils.K_log_likelihood(T_test, K_start.M);
-ll_test_start_diag = utils.K_log_likelihood(T_test, diag(diag(K_start.M)));
-ll_true = utils.K_log_likelihood(T_train, K.M);
-ll_test_true = utils.K_log_likelihood(T_test, K.M);
-ll_test_diag = utils.K_log_likelihood(T_test, diag(diag(K.M)));
+ll_em = ll_func(T_train, K_em.M);
+ll_test_em = ll_func(T_test, K_em.M);
+ll_test_em_diag = ll_func(T_test, diag(diag(K_em.M)));
+ll_ka = ll_func(T_train, K_ka.M);
+ll_test_ka = ll_func(T_test, K_ka.M);
+ll_test_ka_diag = ll_func(T_test, diag(diag(K_ka.M)));
+ll_start = ll_func(T_train, K_start.M);
+ll_test_start = ll_func(T_test, K_start.M);
+ll_test_start_diag = ll_func(T_test, diag(diag(K_start.M)));
+ll_true = ll_func(T_train, K.M);
+ll_test_true = ll_func(T_test, K.M);
+ll_test_diag = ll_func(T_test, diag(diag(K.M)));
 
 lls = [ll_em, ...
   ll_test_em, ...
@@ -110,7 +173,9 @@ for T_size = T_sizes
     ['ll_test_diag' fstr], ...
     ['em_time' fstr], ... % 21
     ['ka_time' fstr], ...
-    ['** (ll_em - ll_ka) / abs(ll_true)' fstr], ... % 23
+    ['num_iters_em' fstr], ...
+    ['num_iters_ka' fstr], ...
+    ['** (ll_em - ll_ka) / abs(ll_true)' fstr], ... % 25
     ['(ll_em - ll_start) / abs(ll_true)' fstr], ...
     ['(ll_ka - ll_start) / abs(ll_true)' fstr], ...
     ['** (ll_test_em - ll_test_ka) / abs(ll_test_true)' fstr], ...
@@ -121,13 +186,16 @@ for T_size = T_sizes
     ['(ll_test_em - ll_test_true) / abs(ll_test_true)' fstr], ...
     ['(ll_test_em - ll_test_diag) / abs(ll_test_true)' fstr], ...
     ['** (ll_test_true - ll_test_diag) / abs(ll_test_true)' fstr], ...
-    ['** em_true_Kkl - ka_true_Kkl' fstr], ... % 34
+    ['** em_true_Kkl - ka_true_Kkl' fstr], ... % 36
     ['! em_true_Kkl - start_true_Kkl' fstr], ...
     ['! em_true_Kkl - em_true_Kkl_diag' fstr], ...
     ['! ka_true_Kkl - start_true_Kkl' fstr], ...
     ['! ka_true_Kkl - ka_true_Kkl_diag' fstr], ...
-    ['(em_time - ka_time) / em_time' fstr]}; % 39
+    ['(em_time - ka_time) / ka_time' fstr], ... % 41
+    ['(num_iters_em - num_iters_ka) / num_iters_ka' fstr], ...
+    ['em_time / num_iters_em' fstr], ...
+    ['ka_time / num_iters_ka' fstr]}; % 44 
 
   fprintf([out_strs{indices} '\n'], ...
-  reshape(r.quantiles(T_num, :, :), [], 3)');
+    reshape(r.quantiles(T_num, :, :), [], 3)');
 end
