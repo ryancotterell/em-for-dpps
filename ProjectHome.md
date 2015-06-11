@@ -1,0 +1,1 @@
+See the Wiki tab for a README file, and the NIPS 2014 paper (and supplement) for additional details.
